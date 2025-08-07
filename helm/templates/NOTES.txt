@@ -1,0 +1,38 @@
+🚀 Elchi Endpoint Discovery has been deployed!
+
+Chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+📋 Configuration:
+- Discovery Interval: {{ .Values.discoveryInterval }}s
+- Log Level: {{ .Values.config.log.level }}
+- Log Format: {{ .Values.config.log.format }}
+- Target: All namespaces
+- Replicas: {{ .Values.replicaCount }}
+
+🔍 To check the status of your deployment:
+
+  kubectl get deployments -n {{ .Release.Namespace }} {{ include "elchi-endpoint-discovery.fullname" . }}
+
+📊 To view pod status:
+
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+📜 To check logs from the service:
+
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -f
+
+⚙️  To scale the deployment:
+
+  kubectl scale deployment -n {{ .Release.Namespace }} {{ include "elchi-endpoint-discovery.fullname" . }} --replicas=2
+
+{{- if not .Values.config.token }}
+⚠️  WARNING: No Elchi token configured. Please set config.token in your values.yaml or via --set config.token=your-token
+{{- end }}
+
+🔧 To change discovery interval:
+
+  helm upgrade {{ .Release.Name }} ./helm/elchi-endpoint-discovery --set discoveryInterval=60
+
+For more information, visit: https://github.com/CloudNativeWorks/elchi-plugins

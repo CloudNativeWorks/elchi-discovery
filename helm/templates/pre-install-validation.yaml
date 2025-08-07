@@ -1,0 +1,7 @@
+{{- if not .Values.clusterName }}
+{{- fail "ERROR: clusterName is required. Please set --set clusterName=your-cluster-name" }}
+{{- end }}
+
+{{- if eq .Values.clusterName "" }}
+{{- fail "ERROR: clusterName cannot be empty. Please set --set clusterName=your-cluster-name" }}
+{{- end }}
