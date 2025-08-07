@@ -60,7 +60,7 @@ func TestGetConfig_NoConfig(t *testing.T) {
 
 	// Try to get config
 	retrievedConfig := GetConfig(ctx)
-	
+
 	// Should return nil when no config is set
 	if retrievedConfig != nil {
 		t.Error("Expected nil when no config is set in context")
@@ -73,7 +73,7 @@ func TestGetConfig_WrongType(t *testing.T) {
 
 	// Try to get config
 	retrievedConfig := GetConfig(ctx)
-	
+
 	// Should return nil when wrong type is stored
 	if retrievedConfig != nil {
 		t.Error("Expected nil when wrong type is stored in context")
@@ -87,10 +87,10 @@ func TestContextKey_Unique(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Add our config
 	ctx = WithConfig(ctx, testConfig)
-	
+
 	// Add another value with a different key
 	type otherKey string
 	const otherContextKey otherKey = "other-config"
@@ -169,7 +169,7 @@ func TestContextCancellation(t *testing.T) {
 
 	baseCtx := context.Background()
 	ctx := WithConfig(baseCtx, testConfig)
-	
+
 	// Create cancellable context
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -213,12 +213,12 @@ func TestConfigModification(t *testing.T) {
 	if retrievedConfig == nil {
 		t.Fatal("Expected to retrieve config")
 	}
-	
+
 	// Since we're storing a pointer, the modification will be visible
 	if retrievedConfig.ClusterName != "modified-cluster" {
 		t.Errorf("Expected cluster name 'modified-cluster', got %s", retrievedConfig.ClusterName)
 	}
-	
+
 	// This test demonstrates that the context stores a reference, not a copy
 	if retrievedConfig != testConfig {
 		t.Error("Expected retrieved config to be the same reference as original")

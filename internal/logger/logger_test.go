@@ -46,7 +46,7 @@ func TestNewDefault(t *testing.T) {
 	if logger == nil {
 		t.Error("Expected logger to be non-nil")
 	}
-	
+
 	// Check that default values are applied
 	if logger.Logger.Level != logrus.InfoLevel {
 		t.Errorf("Expected log level to be Info, got %v", logger.Logger.Level)
@@ -109,7 +109,7 @@ func TestLogLevels(t *testing.T) {
 
 func TestJSONFormatter(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "json",
@@ -145,7 +145,7 @@ func TestJSONFormatter(t *testing.T) {
 
 func TestTextFormatter(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "text", // or any non-json value
@@ -172,7 +172,7 @@ func TestTextFormatter(t *testing.T) {
 
 func TestWithField(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "json",
@@ -201,7 +201,7 @@ func TestWithField(t *testing.T) {
 
 func TestWithFields(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "json",
@@ -242,7 +242,7 @@ func TestWithFields(t *testing.T) {
 
 func TestWithPlugin(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "json",
@@ -271,7 +271,7 @@ func TestWithPlugin(t *testing.T) {
 
 func TestWithComponent(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "info",
 		Format: "json",
@@ -337,7 +337,7 @@ func TestOutputConfiguration(t *testing.T) {
 
 func TestLoggerMethods(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	config := &Config{
 		Level:  "debug", // Set to debug to capture all levels
 		Format: "json",
@@ -354,7 +354,7 @@ func TestLoggerMethods(t *testing.T) {
 
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	if len(lines) != 4 {
 		t.Errorf("Expected 4 log lines, got %d", len(lines))
 	}

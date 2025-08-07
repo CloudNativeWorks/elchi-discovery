@@ -64,31 +64,31 @@ func applyEnvironmentVariables(config *Config) {
 			config.DiscoveryInterval = intVal
 		}
 	}
-	
+
 	if val := os.Getenv("CLUSTER_NAME"); val != "" {
 		config.ClusterName = val
 	}
-	
+
 	if val := os.Getenv("LOG_LEVEL"); val != "" {
 		config.Log.Level = val
 	}
-	
+
 	if val := os.Getenv("LOG_FORMAT"); val != "" {
 		config.Log.Format = val
 	}
-	
+
 	if val := os.Getenv("LOG_OUTPUT"); val != "" {
 		config.Log.Output = val
 	}
-	
+
 	if val := os.Getenv("ELCHI_TOKEN"); val != "" {
 		config.Elchi.Token = val
 	}
-	
+
 	if val := os.Getenv("ELCHI_API_ENDPOINT"); val != "" {
 		config.Elchi.APIEndpoint = val
 	}
-	
+
 	if val := os.Getenv("ELCHI_INSECURE_SKIP_VERIFY"); val != "" {
 		if boolVal, err := strconv.ParseBool(val); err == nil {
 			config.Elchi.InsecureSkipVerify = boolVal
@@ -100,14 +100,14 @@ func getConfigPath() string {
 	if path := os.Getenv("ELCHI_CONFIG"); path != "" {
 		return path
 	}
-	
+
 	if home, err := os.UserHomeDir(); err == nil {
 		configPath := filepath.Join(home, ".elchi", "config.yaml")
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath
 		}
 	}
-	
+
 	if _, err := os.Stat("config.yaml"); err == nil {
 		return "config.yaml"
 	}

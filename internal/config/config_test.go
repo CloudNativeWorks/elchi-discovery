@@ -97,7 +97,7 @@ func TestLoad_ConfigFile(t *testing.T) {
 	// Create temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	
+
 	configContent := `
 discovery_interval: 45
 cluster_name: file-cluster
@@ -147,7 +147,7 @@ func TestLoad_EnvironmentOverridesFile(t *testing.T) {
 	// Create temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	
+
 	configContent := `
 discovery_interval: 45
 cluster_name: file-cluster
@@ -166,7 +166,7 @@ elchi:
 	os.Setenv("ELCHI_CONFIG", configPath)
 	os.Setenv("CLUSTER_NAME", "env-cluster")
 	os.Setenv("LOG_LEVEL", "debug")
-	
+
 	defer func() {
 		os.Unsetenv("ELCHI_CONFIG")
 		os.Unsetenv("CLUSTER_NAME")
@@ -185,7 +185,7 @@ elchi:
 	if cfg.Log.Level != "debug" {
 		t.Errorf("Expected Log.Level = 'debug' (env override), got %s", cfg.Log.Level)
 	}
-	
+
 	// File values should be used where env is not set
 	if cfg.DiscoveryInterval != 45 {
 		t.Errorf("Expected DiscoveryInterval = 45 (from file), got %d", cfg.DiscoveryInterval)
@@ -202,7 +202,7 @@ func TestLoad_InvalidConfigFile(t *testing.T) {
 	// Create temporary invalid config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	
+
 	invalidContent := `invalid yaml content [[[`
 
 	err := os.WriteFile(configPath, []byte(invalidContent), 0644)

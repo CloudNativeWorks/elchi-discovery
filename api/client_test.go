@@ -272,7 +272,7 @@ func TestClient_Timeout(t *testing.T) {
 	}
 	log := logger.NewDefault()
 	client := NewClient(cfg, log)
-	
+
 	// Set a very short timeout for testing
 	client.httpClient.Timeout = 50 * time.Millisecond
 

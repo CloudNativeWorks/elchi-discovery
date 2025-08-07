@@ -8,8 +8,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/kubernetes/fake"
 	discoveryFake "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestNewService(t *testing.T) {
@@ -21,7 +21,7 @@ func TestNewService(t *testing.T) {
 	if service.clusterName != clusterName {
 		t.Errorf("Expected clusterName to be %s, got %s", clusterName, service.clusterName)
 	}
-	
+
 	// Test that the service was created properly
 	if service.client == nil {
 		t.Error("Expected client to be set")
@@ -183,9 +183,9 @@ func TestDiscoverNodes(t *testing.T) {
 
 func TestGetNodeStatus(t *testing.T) {
 	tests := []struct {
-		name       string
-		node       v1.Node
-		expected   string
+		name     string
+		node     v1.Node
+		expected string
 	}{
 		{
 			name: "ready node",
@@ -280,7 +280,7 @@ func TestGetClusterInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := fake.NewSimpleClientset()
-			
+
 			// Mock the discovery client
 			fakeDiscovery, ok := client.Discovery().(*discoveryFake.FakeDiscovery)
 			if !ok {
@@ -325,7 +325,7 @@ func TestDiscoverNodesContext(t *testing.T) {
 func TestDiscoverNodesPerformance(t *testing.T) {
 	// Create multiple nodes to test performance
 	client := fake.NewSimpleClientset()
-	
+
 	// Create 100 test nodes
 	for i := 0; i < 100; i++ {
 		node := &v1.Node{
@@ -357,7 +357,7 @@ func TestDiscoverNodesPerformance(t *testing.T) {
 	}
 
 	service := NewService(client, "test-cluster")
-	
+
 	start := time.Now()
 	result, err := service.DiscoverNodes(context.Background())
 	duration := time.Since(start)

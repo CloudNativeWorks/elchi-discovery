@@ -27,7 +27,7 @@ func TestRunDiscovery(t *testing.T) {
 
 	// Create fake Kubernetes client with test data
 	client := fake.NewSimpleClientset()
-	
+
 	// Add test nodes
 	testNode := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -178,15 +178,15 @@ func TestRunDiscovery_APIFailure(t *testing.T) {
 
 func TestGetKubernetesClient_OutsideCluster(t *testing.T) {
 	// This test will fail in a real Kubernetes cluster, but should work in test environment
-	
+
 	// Save original environment
 	originalKubeconfigPath := os.Getenv("KUBECONFIG")
 	originalHome := os.Getenv("HOME")
-	
+
 	// Clear Kubernetes config environment variables
 	os.Unsetenv("KUBECONFIG")
 	os.Setenv("HOME", "/non-existent-home")
-	
+
 	defer func() {
 		// Restore environment
 		if originalKubeconfigPath != "" {
@@ -206,7 +206,7 @@ func TestGetKubernetesClient_OutsideCluster(t *testing.T) {
 func TestMainIntegration(t *testing.T) {
 	// This is a basic smoke test to ensure main components can be initialized
 	// without actually running the full main function
-	
+
 	// Test that we can create all the necessary components
 	cfg := &config.Config{
 		ClusterName:       "test-cluster",
@@ -272,7 +272,7 @@ func TestMainIntegration(t *testing.T) {
 
 func TestConfigurationLoading(t *testing.T) {
 	// Test configuration loading scenarios
-	
+
 	// Clear relevant environment variables
 	envVars := []string{
 		"CLUSTER_NAME",
@@ -281,13 +281,13 @@ func TestConfigurationLoading(t *testing.T) {
 		"ELCHI_TOKEN",
 		"ELCHI_API_ENDPOINT",
 	}
-	
+
 	originalVars := make(map[string]string)
 	for _, envVar := range envVars {
 		originalVars[envVar] = os.Getenv(envVar)
 		os.Unsetenv(envVar)
 	}
-	
+
 	defer func() {
 		// Restore environment variables
 		for envVar, originalValue := range originalVars {
@@ -339,7 +339,7 @@ func TestConfigurationLoading(t *testing.T) {
 func BenchmarkRunDiscovery(b *testing.B) {
 	// Create fake client with multiple nodes
 	client := fake.NewSimpleClientset()
-	
+
 	// Add multiple test nodes
 	for i := 0; i < 10; i++ {
 		node := &v1.Node{
