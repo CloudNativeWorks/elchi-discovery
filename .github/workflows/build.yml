@@ -117,7 +117,7 @@ jobs:
           # Set image tags
           IMAGE_TAG="${DOCKER_USERNAME}/${IMAGE_NAME}:v${PROJECT_VERSION}-amd64"
           
-          # Build AMD64 platform
+          # Build and push AMD64 platform
           docker buildx build \
             --no-cache \
             --platform linux/amd64 \
@@ -125,10 +125,13 @@ jobs:
             --build-arg "TARGETARCH=amd64" \
             -t "${IMAGE_TAG}" \
             -f Dockerfile \
-            --push \
+            --load \
             .
           
-          echo "✅ elchi-discovery (AMD64) completed"
+          # Push the image
+          docker push "${IMAGE_TAG}"
+          
+          echo "✅ elchi-discovery (AMD64) completed: ${IMAGE_TAG}"
 
       - name: Build AMD64 image (PR)
         if: github.event_name == 'pull_request'
@@ -199,7 +202,7 @@ jobs:
           # Set image tags
           IMAGE_TAG="${DOCKER_USERNAME}/${IMAGE_NAME}:v${PROJECT_VERSION}-arm64"
           
-          # Build ARM64 platform
+          # Build and push ARM64 platform
           docker buildx build \
             --no-cache \
             --platform linux/arm64 \
@@ -207,10 +210,13 @@ jobs:
             --build-arg "TARGETARCH=arm64" \
             -t "${IMAGE_TAG}" \
             -f Dockerfile \
-            --push \
+            --load \
             .
           
-          echo "✅ elchi-discovery (ARM64) completed"
+          # Push the image
+          docker push "${IMAGE_TAG}"
+          
+          echo "✅ elchi-discovery (ARM64) completed: ${IMAGE_TAG}"
 
       - name: Build ARM64 image (PR)
         if: github.event_name == 'pull_request'
@@ -262,6 +268,10 @@ jobs:
           MANIFEST_TAG="${FULL_IMAGE_NAME}:v${PROJECT_VERSION}"
           LATEST_TAG="${FULL_IMAGE_NAME}:latest"
           
+          # Remove any existing manifest (in case of retry)
+          docker manifest rm "${MANIFEST_TAG}" 2>/dev/null || true
+          docker manifest rm "${LATEST_TAG}" 2>/dev/null || true
+          
           # Create manifest list from platform-specific images
           docker manifest create "${MANIFEST_TAG}" \
             "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-amd64" \
@@ -269,15 +279,19 @@ jobs:
           
           # Push manifest
           docker manifest push "${MANIFEST_TAG}"
+          echo "✅ Version manifest pushed: ${MANIFEST_TAG}"
           
-          # Create latest manifest only for tagged releases
-          if [[ "${{ github.ref }}" == refs/tags/v* ]] || [[ "${{ github.ref }}" == refs/heads/main ]]; then
+          # Create latest manifest only for tagged releases or main branch
+          if [[ "${{ github.ref }}" == refs/tags/v* ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Creating latest manifest..."
             docker manifest create "${LATEST_TAG}" \
               "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-amd64" \
               "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-arm64"
             
             docker manifest push "${LATEST_TAG}"
-            echo "✅ Latest manifest created"
+            echo "✅ Latest manifest pushed: ${LATEST_TAG}"
+          else
+            echo "Skipping latest manifest (not main branch or tagged release)"
           fi
           
           echo "✅ Manifest created for elchi-discovery v${PROJECT_VERSION}"
