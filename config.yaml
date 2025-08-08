@@ -3,8 +3,8 @@
 
 # Elchi API configuration
 elchi:
-  # Bearer token for API authentication
-  token: "sample-token-123"
+  # Bearer token for API authentication (format: uuid--project)
+  token: "96688e4c-6737-4230-9591-6a3332115871--683b2148ff7e3ae67d825cfa"
   
   # API endpoint to send discovery results
   # Supports: http://host, https://host, http://host:port, https://host:port

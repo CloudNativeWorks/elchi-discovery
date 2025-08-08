@@ -1,0 +1,43 @@
+{
+  "project": "683b2148ff7e3ae67d825cfa",
+  "data": {
+    "timestamp": "2025-08-07T22:42:30.123456Z",
+    "cluster_info": {
+      "cluster_name": "my-kubernetes-cluster",
+      "cluster_version": "v1.28.2"
+    },
+    "node_count": 3,
+    "nodes": [
+      {
+        "name": "master-node-1",
+        "status": "Ready",
+        "version": "v1.28.2",
+        "addresses": {
+          "InternalIP": "192.168.1.10",
+          "ExternalIP": "10.0.0.10",
+          "Hostname": "master-node-1"
+        }
+      },
+      {
+        "name": "worker-node-1",
+        "status": "Ready",
+        "version": "v1.28.2",
+        "addresses": {
+          "InternalIP": "192.168.1.11",
+          "ExternalIP": "10.0.0.11",
+          "Hostname": "worker-node-1"
+        }
+      },
+      {
+        "name": "worker-node-2",
+        "status": "NotReady",
+        "version": "v1.28.1",
+        "addresses": {
+          "InternalIP": "192.168.1.12",
+          "Hostname": "worker-node-2"
+        }
+      }
+    ],
+    "discovery_duration": "245.123ms"
+  }
+}

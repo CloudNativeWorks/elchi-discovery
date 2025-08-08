@@ -61,7 +61,7 @@ func TestRunDiscovery(t *testing.T) {
 		ClusterName: "test-cluster",
 		Elchi: config.ElchiConfig{
 			APIEndpoint: server.URL,
-			Token:       "test-token",
+			Token:       "96688e4c-6737-4230-9591-6a3332115871--683b2148ff7e3ae67d825cfa",
 		},
 		Log: config.LogConfig{
 			Level:  "info",
@@ -218,7 +218,7 @@ func TestMainIntegration(t *testing.T) {
 		},
 		Elchi: config.ElchiConfig{
 			APIEndpoint: "https://api.example.com",
-			Token:       "test-token",
+			Token:       "96688e4c-6737-4230-9591-6a3332115871--683b2148ff7e3ae67d825cfa",
 		},
 	}
 

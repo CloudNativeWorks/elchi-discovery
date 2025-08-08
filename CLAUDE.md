@@ -23,7 +23,7 @@ When working on this codebase, please use the following commands:
 - Use the internal packages for common functionality (logger, config, context)
 - Ensure all tests pass before committing
 - Run `go mod tidy` before submitting changes
-- Use Go 1.21+ features when appropriate
+- Use Go 1.23+ features when appropriate
 
 ## Project Structure
 
@@ -52,7 +52,7 @@ elchi-discovery/
 - `DISCOVERY_INTERVAL` - Discovery interval in seconds (default: 30)
 - `LOG_LEVEL` - Log level: debug, info, warn, error (default: info)
 - `LOG_FORMAT` - Log format: text or json (default: text)
-- `ELCHI_TOKEN` - Optional: Authentication token for API
+- `ELCHI_TOKEN` - Optional: Authentication token for API (format: uuid--project)
 - `ELCHI_API_ENDPOINT` - Optional: API endpoint to send discovery results
 - `ELCHI_INSECURE_SKIP_VERIFY` - Skip TLS verification for API calls (default: false)
 

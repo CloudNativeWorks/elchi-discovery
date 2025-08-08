@@ -1,5 +1,5 @@
 # Multi-stage build for elchi-discovery
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23.1-alpine AS builder
 
 # Install git for go modules
 RUN apk add --no-cache git ca-certificates
