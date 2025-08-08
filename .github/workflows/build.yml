@@ -68,19 +68,15 @@ jobs:
   build-amd64:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    needs: test
-    if: contains(github.event.inputs.platforms, 'linux/amd64') || github.event_name != 'workflow_dispatch'
+    needs: [test, check-release]
+    if: (contains(github.event.inputs.platforms, 'linux/amd64') || github.event_name != 'workflow_dispatch') && (github.event_name == 'pull_request' || needs.check-release.outputs.should_create_release == 'true')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set Project Version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          else
-            echo "PROJECT_VERSION=$(cat VERSION)" >> $GITHUB_ENV
-          fi
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -153,19 +149,15 @@ jobs:
   build-arm64:
     runs-on: self-hosted
     timeout-minutes: 30
-    needs: test
-    if: contains(github.event.inputs.platforms, 'linux/arm64') || github.event_name != 'workflow_dispatch'
+    needs: [test, check-release]
+    if: (contains(github.event.inputs.platforms, 'linux/arm64') || github.event_name != 'workflow_dispatch') && (github.event_name == 'pull_request' || needs.check-release.outputs.should_create_release == 'true')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set Project Version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          else
-            echo "PROJECT_VERSION=$(cat VERSION)" >> $GITHUB_ENV
-          fi
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -238,19 +230,15 @@ jobs:
   create-manifest:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
-    needs: [build-amd64, build-arm64]
-    if: github.event_name != 'pull_request' && (contains(github.event.inputs.platforms, ',') || github.event_name != 'workflow_dispatch')
+    needs: [build-amd64, build-arm64, check-release]
+    if: github.event_name != 'pull_request' && (contains(github.event.inputs.platforms, ',') || github.event_name != 'workflow_dispatch') && needs.check-release.outputs.should_create_release == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set Project Version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          else
-            echo "PROJECT_VERSION=$(cat VERSION)" >> $GITHUB_ENV
-          fi
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
 
       - name: Login to Docker Registry
         uses: docker/login-action@v3
@@ -296,22 +284,53 @@ jobs:
           
           echo "✅ Manifest created for elchi-discovery v${PROJECT_VERSION}"
 
+  check-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    if: github.event_name != 'pull_request'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_create_release: ${{ steps.check.outputs.should_create_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Project version: ${VERSION}"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Check if release exists
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "❌ Release v${VERSION} already exists!"
+            echo "should_create_release=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ Release v${VERSION} does not exist, proceeding with build"
+            echo "should_create_release=true" >> $GITHUB_OUTPUT
+          fi
+
   security-scan:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    needs: [build-amd64]
-    if: github.event_name != 'pull_request'
+    needs: [build-amd64, check-release]
+    if: github.event_name != 'pull_request' && needs.check-release.outputs.should_create_release == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set Project Version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          else
-            echo "PROJECT_VERSION=$(cat VERSION)" >> $GITHUB_ENV
-          fi
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -325,3 +344,56 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+  create-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [create-manifest, security-scan, check-release]
+    if: github.event_name != 'pull_request' && needs.check-release.outputs.should_create_release == 'true' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          
+          # Create release with changelog
+          echo "Creating release v${VERSION}..."
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          # elchi-discovery v${VERSION}
+          
+          ## Docker Images
+          - **Multi-platform**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}\`
+          - **AMD64**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}-amd64\`
+          - **ARM64**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}-arm64\`
+          
+          ## What's Changed
+          
+          Kubernetes node discovery service that extracts cluster node information and sends it to configured API endpoints.
+          
+          ### Features
+          - Kubernetes cluster node discovery
+          - Multi-platform Docker support (AMD64/ARM64)
+          - Token-based authentication with project extraction
+          - Structured API response handling
+          - Comprehensive logging and error handling
+          - Security scanning with Trivy
+          
+          ### Configuration
+          The service can be configured via \`config.yaml\` file or environment variables.
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/commits/v${VERSION}
+          EOF
+          
+          # Create the release
+          gh release create "v${VERSION}" \
+            --title "elchi-discovery v${VERSION}" \
+            --notes-file release_notes.md \
+            --latest
+          
+          echo "✅ Release v${VERSION} created successfully!"
