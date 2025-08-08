@@ -22,7 +22,7 @@ type Client struct {
 
 // DiscoveryPayload wraps the discovery result with project information
 type DiscoveryPayload struct {
-	Project string                    `json:"project"`
+	Project string                     `json:"project"`
 	Data    *discovery.DiscoveryResult `json:"data"`
 }
 
@@ -157,7 +157,7 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 			"project":     projectID,
 			"error":       apiResponse.Error,
 		}).Error("API reported processing error for discovery result")
-		
+
 		// Return error if API explicitly reported failure
 		return fmt.Errorf("API processing failed: %s", apiResponse.Error)
 	}
