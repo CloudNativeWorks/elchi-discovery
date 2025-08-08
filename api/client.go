@@ -19,8 +19,8 @@ type Client struct {
 	httpClient *http.Client
 	config     *config.Config
 	logger     *logger.Logger
-    // initialCompleted is used to send initial:false after success is received
-    initialCompleted atomic.Bool
+	// initialCompleted is used to send initial:false after success is received
+	initialCompleted atomic.Bool
 }
 
 // DiscoveryPayload wraps the discovery result with project information
@@ -100,12 +100,12 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("from-elchi", "yes")
-    if c.initialCompleted.Load() {
-        req.Header.Set("initial", "false")
-    } else {
+	if c.initialCompleted.Load() {
+		req.Header.Set("initial", "false")
+	} else {
 		// Send initial:true until success is received
-        req.Header.Set("initial", "true")
-    }
+		req.Header.Set("initial", "true")
+	}
 	if c.config.Elchi.Token != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.Elchi.Token))
 	}
@@ -154,7 +154,7 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 	// Log based on response success
 	if apiResponse.Success {
 		// After success, initial:false will be sent
-        c.initialCompleted.Store(true)
+		c.initialCompleted.Store(true)
 		c.logger.WithFields(map[string]interface{}{
 			"status_code": resp.StatusCode,
 			"endpoint":    c.config.Elchi.APIEndpoint,
