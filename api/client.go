@@ -106,7 +106,7 @@ func (c *Client) sendDiscoveryResult(result *discovery.DiscoveryResult, shouldSe
 	if err != nil {
 		return fmt.Errorf("failed to marshal discovery payload: %w", err)
 	}
-	
+
 	// Create JSON preview for logging
 	previewLen := 200
 	if len(jsonData) < previewLen {
@@ -116,7 +116,7 @@ func (c *Client) sendDiscoveryResult(result *discovery.DiscoveryResult, shouldSe
 	if len(jsonData) > 200 {
 		preview += "..."
 	}
-	
+
 	c.logger.Debug("Sending discovery payload to API", map[string]interface{}{
 		"endpoint":     c.config.Elchi.APIEndpoint,
 		"project":      payload.Project,
