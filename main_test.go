@@ -10,6 +10,7 @@ import (
 	"github.com/CloudNativeWorks/elchi-discovery/api"
 	"github.com/CloudNativeWorks/elchi-discovery/discovery"
 	"github.com/CloudNativeWorks/elchi-discovery/internal/config"
+	elchiContext "github.com/CloudNativeWorks/elchi-discovery/internal/context"
 	"github.com/CloudNativeWorks/elchi-discovery/internal/logger"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,8 +85,8 @@ func TestRunDiscovery(t *testing.T) {
 	// Create API client
 	apiClient := api.NewClient(cfg, log)
 
-	// Run discovery
-	ctx := context.Background()
+	// Run discovery with config in context
+	ctx := elchiContext.WithConfig(context.Background(), cfg)
 	runDiscovery(ctx, log, discoveryService, apiClient)
 
 	// Verify that API was called
@@ -126,7 +127,7 @@ func TestRunDiscovery_NoAPIEndpoint(t *testing.T) {
 	apiClient := api.NewClient(cfg, log)
 
 	// Run discovery (should not fail even without API endpoint)
-	ctx := context.Background()
+	ctx := elchiContext.WithConfig(context.Background(), cfg)
 	runDiscovery(ctx, log, discoveryService, apiClient)
 
 	// Test passes if no panic or error occurs
@@ -170,7 +171,7 @@ func TestRunDiscovery_APIFailure(t *testing.T) {
 	apiClient := api.NewClient(cfg, log)
 
 	// Run discovery (should not fail even with API error)
-	ctx := context.Background()
+	ctx := elchiContext.WithConfig(context.Background(), cfg)
 	runDiscovery(ctx, log, discoveryService, apiClient)
 
 	// Test passes if no panic occurs (API failure should be logged but not fatal)

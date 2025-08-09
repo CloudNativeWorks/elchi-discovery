@@ -67,29 +67,62 @@ func NewClient(cfg *config.Config, log *logger.Logger) *Client {
 }
 
 func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
-	// Check if API endpoint is configured
-	if c.config.Elchi.APIEndpoint == "" {
+	return c.sendDiscoveryResult(result, true)
+}
+
+func (c *Client) GetDiscoveryPayload(result *discovery.DiscoveryResult) (*DiscoveryPayload, error) {
+	// Extract project ID from token
+	projectID := extractProjectFromToken(c.config.Elchi.Token)
+	if projectID == "" {
+		return nil, fmt.Errorf("invalid token format: expected 'uuid--project' format")
+	}
+
+	// Create payload with project information
+	return &DiscoveryPayload{
+		Project: projectID,
+		Data:    result,
+	}, nil
+}
+
+func (c *Client) sendDiscoveryResult(result *discovery.DiscoveryResult, shouldSend bool) error {
+	// Check if API endpoint is configured and shouldSend is true
+	if c.config.Elchi.APIEndpoint == "" || !shouldSend {
 		c.logger.Debug("No API endpoint configured, skipping send")
 		return nil
 	}
 
-	// Extract project ID from token
-	projectID := extractProjectFromToken(c.config.Elchi.Token)
-	if projectID == "" {
-		return fmt.Errorf("invalid token format: expected 'uuid--project' format")
+	// Get payload using shared method
+	payload, err := c.GetDiscoveryPayload(result)
+	if err != nil {
+		return err
 	}
 
-	// Create payload with project information
-	payload := DiscoveryPayload{
-		Project: projectID,
-		Data:    result,
-	}
+	c.logger.Debug("Successfully extracted project from token", map[string]interface{}{
+		"project_id": payload.Project,
+	})
 
 	// Marshal payload to JSON
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal discovery payload: %w", err)
 	}
+	
+	// Create JSON preview for logging
+	previewLen := 200
+	if len(jsonData) < previewLen {
+		previewLen = len(jsonData)
+	}
+	preview := string(jsonData[:previewLen])
+	if len(jsonData) > 200 {
+		preview += "..."
+	}
+	
+	c.logger.Debug("Sending discovery payload to API", map[string]interface{}{
+		"endpoint":     c.config.Elchi.APIEndpoint,
+		"project":      payload.Project,
+		"payload_size": len(jsonData),
+		"json_preview": preview,
+	})
 
 	// Create request
 	req, err := http.NewRequest("POST", c.config.Elchi.APIEndpoint, bytes.NewBuffer(jsonData))
@@ -125,7 +158,7 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 			c.logger.WithFields(map[string]interface{}{
 				"status_code": resp.StatusCode,
 				"endpoint":    c.config.Elchi.APIEndpoint,
-				"project":     projectID,
+				"project":     payload.Project,
 				"error":       apiResponse.Error,
 			}).Error("API returned error response")
 			return fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, apiResponse.Error)
@@ -133,7 +166,7 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 			c.logger.WithFields(map[string]interface{}{
 				"status_code": resp.StatusCode,
 				"endpoint":    c.config.Elchi.APIEndpoint,
-				"project":     projectID,
+				"project":     payload.Project,
 			}).Error("API returned non-success HTTP status")
 			return fmt.Errorf("API returned non-success status: %d", resp.StatusCode)
 		}
@@ -145,7 +178,7 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 		c.logger.WithFields(map[string]interface{}{
 			"status_code": resp.StatusCode,
 			"endpoint":    c.config.Elchi.APIEndpoint,
-			"project":     projectID,
+			"project":     payload.Project,
 			"error":       err.Error(),
 		}).Warn("Failed to parse API response, but HTTP status indicates success")
 		return nil
@@ -158,14 +191,14 @@ func (c *Client) SendDiscoveryResult(result *discovery.DiscoveryResult) error {
 		c.logger.WithFields(map[string]interface{}{
 			"status_code": resp.StatusCode,
 			"endpoint":    c.config.Elchi.APIEndpoint,
-			"project":     projectID,
+			"project":     payload.Project,
 			"message":     apiResponse.Message,
 		}).Info("Discovery result processed successfully by API")
 	} else {
 		c.logger.WithFields(map[string]interface{}{
 			"status_code": resp.StatusCode,
 			"endpoint":    c.config.Elchi.APIEndpoint,
-			"project":     projectID,
+			"project":     payload.Project,
 			"error":       apiResponse.Error,
 		}).Error("API reported processing error for discovery result")
 

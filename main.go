@@ -93,10 +93,17 @@ func runDiscovery(ctx context.Context, log *logger.Logger, discoveryService *dis
 		return
 	}
 
-	// Print as pretty JSON to stdout
-	jsonOutput, err := json.MarshalIndent(result, "", "  ")
+	// Get the exact payload that will be sent to API
+	payload, err := apiClient.GetDiscoveryPayload(result)
 	if err != nil {
-		log.WithError(err).Error("Failed to marshal discovery result to JSON")
+		log.WithError(err).Error("Failed to create discovery payload")
+		return
+	}
+
+	// Print as pretty JSON to stdout (same as what gets sent to API)
+	jsonOutput, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		log.WithError(err).Error("Failed to marshal discovery payload to JSON")
 		return
 	}
 
