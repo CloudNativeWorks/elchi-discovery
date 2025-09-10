@@ -1,0 +1,409 @@
+name: Build and Push elchi-discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Target platforms (comma separated)'
+        required: true
+        default: 'linux/amd64,linux/arm64'
+        type: string
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  DOCKER_REGISTRY: docker.io
+  IMAGE_NAME: elchi-discovery
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.1'
+          cache: false
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-go-
+
+      - name: Run tests
+        run: |
+          echo "Running tests..."
+          go mod download
+          go test -v -race -cover ./...
+
+      - name: Run go mod tidy check
+        run: |
+          go mod tidy
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            echo "go.mod or go.sum is not tidy"
+            git diff go.mod go.sum
+            exit 1
+          fi
+
+      - name: Run linting checks
+        run: |
+          echo "Running linting checks..."
+          # Check if code is formatted
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted properly:"
+            gofmt -l .
+            exit 1
+          fi
+          
+          # Check for common Go issues
+          go vet ./...
+
+  build-amd64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    needs: [test, check-release]
+    if: (contains(github.event.inputs.platforms, 'linux/amd64') || github.event_name != 'workflow_dispatch') && (github.event_name == 'pull_request' || needs.check-release.outputs.should_create_release == 'true')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Project Version
+        run: |
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.1'
+          cache: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build binary
+        run: |
+          echo "Building binary for AMD64..."
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/elchi-discovery-amd64 .
+
+      - name: Build and push AMD64 image
+        if: github.event_name != 'pull_request'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          echo "Building elchi-discovery (AMD64)"
+          
+          # Set image tags
+          IMAGE_TAG="${DOCKER_USERNAME}/${IMAGE_NAME}:v${PROJECT_VERSION}-amd64"
+          
+          # Build and push AMD64 platform
+          docker buildx build \
+            --no-cache \
+            --platform linux/amd64 \
+            --build-arg "PROJECT_VERSION=${PROJECT_VERSION}" \
+            --build-arg "TARGETARCH=amd64" \
+            -t "${IMAGE_TAG}" \
+            -f Dockerfile \
+            --load \
+            .
+          
+          # Push the image
+          docker push "${IMAGE_TAG}"
+          
+          echo "✅ elchi-discovery (AMD64) completed: ${IMAGE_TAG}"
+
+      - name: Build AMD64 image (PR)
+        if: github.event_name == 'pull_request'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          echo "Building elchi-discovery (AMD64) - PR test build"
+          
+          # Build AMD64 platform without pushing
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg "PROJECT_VERSION=${PROJECT_VERSION}" \
+            --build-arg "TARGETARCH=amd64" \
+            -f Dockerfile \
+            .
+          
+          echo "✅ elchi-discovery (AMD64) PR build completed"
+
+  build-arm64:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    needs: [test, check-release]
+    if: (contains(github.event.inputs.platforms, 'linux/arm64') || github.event_name != 'workflow_dispatch') && (github.event_name == 'pull_request' || needs.check-release.outputs.should_create_release == 'true')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Project Version
+        run: |
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.1'
+          cache: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build binary
+        run: |
+          echo "Building binary for ARM64..."
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/elchi-discovery-arm64 .
+
+      - name: Build and push ARM64 image
+        if: github.event_name != 'pull_request'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          echo "Building elchi-discovery (ARM64)"
+          
+          # Set image tags
+          IMAGE_TAG="${DOCKER_USERNAME}/${IMAGE_NAME}:v${PROJECT_VERSION}-arm64"
+          
+          # Build and push ARM64 platform
+          docker buildx build \
+            --no-cache \
+            --platform linux/arm64 \
+            --build-arg "PROJECT_VERSION=${PROJECT_VERSION}" \
+            --build-arg "TARGETARCH=arm64" \
+            -t "${IMAGE_TAG}" \
+            -f Dockerfile \
+            --load \
+            .
+          
+          # Push the image
+          docker push "${IMAGE_TAG}"
+          
+          echo "✅ elchi-discovery (ARM64) completed: ${IMAGE_TAG}"
+
+      - name: Build ARM64 image (PR)
+        if: github.event_name == 'pull_request'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          echo "Building elchi-discovery (ARM64) - PR test build"
+          
+          # Build ARM64 platform without pushing
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg "PROJECT_VERSION=${PROJECT_VERSION}" \
+            --build-arg "TARGETARCH=arm64" \
+            -f Dockerfile \
+            .
+          
+          echo "✅ elchi-discovery (ARM64) PR build completed"
+
+  create-manifest:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    needs: [build-amd64, build-arm64, check-release]
+    if: github.event_name != 'pull_request' && (contains(github.event.inputs.platforms, ',') || github.event_name != 'workflow_dispatch') && needs.check-release.outputs.should_create_release == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Project Version
+        run: |
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Create multi-platform manifest
+        run: |
+          echo "Creating manifest for elchi-discovery"
+          
+          # Set image names
+          FULL_IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}"
+          MANIFEST_TAG="${FULL_IMAGE_NAME}:v${PROJECT_VERSION}"
+          LATEST_TAG="${FULL_IMAGE_NAME}:latest"
+          
+          # Remove any existing manifest (in case of retry)
+          docker manifest rm "${MANIFEST_TAG}" 2>/dev/null || true
+          docker manifest rm "${LATEST_TAG}" 2>/dev/null || true
+          
+          # Create manifest list from platform-specific images
+          docker manifest create "${MANIFEST_TAG}" \
+            "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-amd64" \
+            "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-arm64"
+          
+          # Push manifest
+          docker manifest push "${MANIFEST_TAG}"
+          echo "✅ Version manifest pushed: ${MANIFEST_TAG}"
+          
+          # Create latest manifest only for tagged releases or main branch
+          if [[ "${{ github.ref }}" == refs/tags/v* ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Creating latest manifest..."
+            docker manifest create "${LATEST_TAG}" \
+              "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-amd64" \
+              "${FULL_IMAGE_NAME}:v${PROJECT_VERSION}-arm64"
+            
+            docker manifest push "${LATEST_TAG}"
+            echo "✅ Latest manifest pushed: ${LATEST_TAG}"
+          else
+            echo "Skipping latest manifest (not main branch or tagged release)"
+          fi
+          
+          echo "✅ Manifest created for elchi-discovery v${PROJECT_VERSION}"
+
+  check-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    if: github.event_name != 'pull_request'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_create_release: ${{ steps.check.outputs.should_create_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Project version: ${VERSION}"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Check if release exists
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "❌ Release v${VERSION} already exists!"
+            echo "should_create_release=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ Release v${VERSION} does not exist, proceeding with build"
+            echo "should_create_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  security-scan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [build-amd64, check-release]
+    if: github.event_name != 'pull_request' && needs.check-release.outputs.should_create_release == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Project Version
+        run: |
+          echo "PROJECT_VERSION=${{ needs.check-release.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${{ env.PROJECT_VERSION }}-amd64'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  create-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [create-manifest, security-scan, check-release]
+    if: github.event_name != 'pull_request' && needs.check-release.outputs.should_create_release == 'true' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          
+          # Create release with changelog
+          echo "Creating release v${VERSION}..."
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          # elchi-discovery v${VERSION}
+          
+          ## Docker Images
+          - **Multi-platform**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}\`
+          - **AMD64**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}-amd64\`
+          - **ARM64**: \`${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:v${VERSION}-arm64\`
+          
+          ## What's Changed
+          
+          Kubernetes node discovery service that extracts cluster node information and sends it to configured API endpoints.
+          
+          ### Features
+          - Kubernetes cluster node discovery
+          - Multi-platform Docker support (AMD64/ARM64)
+          - Token-based authentication with project extraction
+          - Structured API response handling
+          - Comprehensive logging and error handling
+          - Security scanning with Trivy
+          
+          ### Configuration
+          The service can be configured via \`config.yaml\` file or environment variables.
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/commits/v${VERSION}
+          EOF
+          
+          # Create the release
+          gh release create "v${VERSION}" \
+            --title "elchi-discovery v${VERSION}" \
+            --notes-file release_notes.md \
+            --latest
+          
+          echo "✅ Release v${VERSION} created successfully!"
